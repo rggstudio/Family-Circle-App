@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack } from "expo-router";
-import { StyleSheet } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { AuthProvider } from "../context/AuthContext";
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function Layout() {
+  useEffect(() => {
+    console.log("_layout.tsx mounted");
+  }, []);
+
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
@@ -21,6 +25,7 @@ export default function Layout() {
               color: 'white',
             },
             headerShadowVisible: false,
+            contentStyle: { backgroundColor: "#000000" },
           }}
         >
           <Stack.Screen 

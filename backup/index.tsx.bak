@@ -74,12 +74,12 @@ export default function Welcome() {
 
   const onSignUp = () => {
     console.log("Navigating to signup");
-    router.push('/signup');
+    router.push('/signup' as any);
   };
 
   const onLogin = () => {
     console.log("Navigating to login");
-    router.push('/login');
+    router.push('/login' as any);
   };
 
   // Show loading screen while checking auth status
@@ -244,4 +244,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 18,
   },
-}); 
+});
