@@ -5,16 +5,25 @@ import { getReactNativePersistence } from "firebase/auth/react-native";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  FIREBASE_API_KEY,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_APP_ID,
+  FIREBASE_MEASUREMENT_ID
+} from "@env";
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDOEdfmEiPs_EqAE0jperwPfAHQ5rEwCiY",
-  authDomain: "family-circle-a3506.firebaseapp.com",
-  projectId: "family-circle-a3506",
-  storageBucket: "family-circle-a3506.firebasestorage.app",
-  messagingSenderId: "598727881357",
-  appId: "1:598727881357:web:672405287656c32d8768c4",
-  measurementId: "G-6C7ZLKSVV4",
+  apiKey: FIREBASE_API_KEY,
+  authDomain: FIREBASE_AUTH_DOMAIN,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId: FIREBASE_APP_ID,
+  measurementId: FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase
