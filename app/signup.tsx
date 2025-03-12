@@ -69,7 +69,7 @@ export default function SignUp() {
       
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -140,7 +140,7 @@ export default function SignUp() {
         firstName,
         lastName,
         profileImage,
-        circleOption,
+        circleOption || undefined,
         familyCircleName,
         inviteCode
       );
