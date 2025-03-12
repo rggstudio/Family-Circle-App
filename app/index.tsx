@@ -10,18 +10,27 @@ import {
   StyleSheet,
   Platform,
   ScrollView,
-  ImageBackground,
+  ActivityIndicator,
   NativeSyntheticEvent,
   NativeScrollEvent
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function Welcome() {
   const router = useRouter();
+  const { user, isLoading } = useAuth();
   const [activeSlide, setActiveSlide] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Redirect to home if user is already logged in
+  useEffect(() => {
+    if (user && !isLoading) {
+      router.replace('/home');
+    }
+  }, [user, isLoading, router]);
 
   // Match image names with what's in the assets folder
   const carouselImages = [
@@ -63,6 +72,16 @@ export default function Welcome() {
   const onLogin = () => {
     router.push("login" as any);
   };
+
+  // Show loading screen while checking auth status
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF8C00" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -135,6 +154,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    marginTop: 10,
+    fontSize: 16,
   },
   header: {
     alignItems: 'center',

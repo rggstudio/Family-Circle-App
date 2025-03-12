@@ -11,60 +11,58 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
-  ActivityIndicator,
   Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { logIn } from '../firebase/auth';
+import { resetPassword } from '../firebase/auth';
 import { getEmailError } from '../utils/validation';
 
-export default function Login() {
+export default function ForgotPassword() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [passwordVisible, setPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
   
   const handleClose = () => {
     router.back();
   };
   
-  const handleLogin = async () => {
-    // Validate input
+  const handleSubmit = async () => {
+    // Validate email
     const emailErr = getEmailError(email);
     if (emailErr) {
       setEmailError(emailErr);
       return;
     }
     
-    if (!password) {
-      setPasswordError('Password is required');
-      return;
-    }
-    
     setIsSubmitting(true);
     
     try {
-      await logIn(email, password);
+      await resetPassword(email);
       
-      // Successful login, navigate to home screen
-      router.replace('/home');
+      Alert.alert(
+        'Reset Email Sent',
+        'If an account exists with this email, you will receive instructions to reset your password.',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
     } catch (error: any) {
       // Handle specific Firebase errors
       if (error.code === 'auth/invalid-email') {
         setEmailError('Invalid email address');
       } else if (error.code === 'auth/user-not-found') {
-        setEmailError('No account found with this email');
-      } else if (error.code === 'auth/wrong-password') {
-        setPasswordError('Incorrect password');
-      } else {
-        // Generic error message
+        // For security reasons, we still show the success message even if the email doesn't exist
         Alert.alert(
-          'Login Failed', 
-          error.message || 'An error occurred during login. Please try again.'
+          'Reset Email Sent',
+          'If an account exists with this email, you will receive instructions to reset your password.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      } else {
+        // Generic error
+        Alert.alert(
+          'Error',
+          error.message || 'An error occurred. Please try again later.',
+          [{ text: 'OK' }]
         );
       }
     } finally {
@@ -72,15 +70,8 @@ export default function Login() {
     }
   };
 
-  const handleForgotPassword = () => {
-    router.push('forgot-password' as any);
-  };
-
-  const navigateToSignUp = () => {
+  const navigateToLogin = () => {
     router.back();
-    setTimeout(() => {
-      router.push('signup' as any);
-    }, 300);
   };
 
   return (
@@ -102,9 +93,9 @@ export default function Login() {
             
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Welcome Back</Text>
+              <Text style={styles.title}>Forgot Password</Text>
               <Text style={styles.subtitle}>
-                Log in to connect with your family
+                Enter your email and we'll send you instructions to reset your password
               </Text>
             </View>
             
@@ -127,68 +118,28 @@ export default function Login() {
                 {emailError && <Text style={styles.errorText}>{emailError}</Text>}
               </View>
               
-              <View style={styles.inputContainer}>
-                <View style={[styles.passwordContainer, passwordError && styles.inputError]}>
-                  <TextInput
-                    style={styles.passwordInput}
-                    placeholder="Password"
-                    placeholderTextColor="#777777"
-                    value={password}
-                    onChangeText={text => {
-                      setPassword(text);
-                      setPasswordError(null);
-                    }}
-                    secureTextEntry={!passwordVisible}
-                    autoCapitalize="none"
-                    editable={!isSubmitting}
-                  />
-                  <TouchableOpacity 
-                    onPress={() => setPasswordVisible(!passwordVisible)}
-                    style={styles.eyeButton}
-                    disabled={isSubmitting}
-                  >
-                    <Ionicons 
-                      name={passwordVisible ? "eye-off" : "eye"} 
-                      size={24} 
-                      color="#777777" 
-                    />
-                  </TouchableOpacity>
-                </View>
-                {passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
-              </View>
-              
-              <TouchableOpacity 
-                style={styles.forgotPasswordContainer}
-                onPress={handleForgotPassword}
-                disabled={isSubmitting}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-              </TouchableOpacity>
-              
               <TouchableOpacity 
                 style={[
-                  styles.loginButton,
-                  (isSubmitting || !email || !password) && styles.loginButtonDisabled
+                  styles.submitButton,
+                  (isSubmitting || !email) && styles.submitButtonDisabled
                 ]}
-                onPress={handleLogin}
+                onPress={handleSubmit}
                 activeOpacity={0.8}
-                disabled={isSubmitting || !email || !password}
+                disabled={isSubmitting || !email}
               >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.loginButtonText}>LOG IN</Text>
-                )}
+                <Text style={styles.submitButtonText}>
+                  {isSubmitting ? 'SENDING...' : 'SEND RESET LINK'}
+                </Text>
               </TouchableOpacity>
               
-              <View style={styles.registerContainer}>
-                <Text style={styles.registerText}>
-                  Don't have an account?{' '}
+              <View style={styles.backToLoginContainer}>
+                <Text style={styles.backToLoginText}>
+                  Remember your password?{' '}
                   <Text 
-                    style={styles.registerLink}
-                    onPress={navigateToSignUp}
+                    style={styles.backToLoginLink}
+                    onPress={navigateToLogin}
                   >
-                    Sign Up
+                    Back to Login
                   </Text>
                 </Text>
               </View>
@@ -220,25 +171,26 @@ const styles = StyleSheet.create({
   header: {
     marginTop: Platform.OS === 'ios' ? 60 : 50,
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 40,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   subtitle: {
     fontSize: 16,
     color: '#DDDDDD',
     textAlign: 'center',
     paddingHorizontal: 10,
+    lineHeight: 22,
   },
   form: {
     width: '100%',
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 30,
   },
   input: {
     backgroundColor: '#222222',
@@ -258,54 +210,30 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginLeft: 5,
   },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#222222',
-    borderRadius: 8,
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  eyeButton: {
-    paddingHorizontal: 15,
-  },
-  forgotPasswordContainer: {
-    alignItems: 'flex-end',
-    marginBottom: 20,
-  },
-  forgotPasswordText: {
-    color: '#FF8C00',
-    fontSize: 14,
-  },
-  loginButton: {
+  submitButton: {
     backgroundColor: '#FF8C00',
     borderRadius: 25,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  loginButtonDisabled: {
+  submitButtonDisabled: {
     backgroundColor: '#7d4400',
     opacity: 0.7,
   },
-  loginButtonText: {
+  submitButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  registerContainer: {
+  backToLoginContainer: {
     marginTop: 25,
     alignItems: 'center',
   },
-  registerText: {
+  backToLoginText: {
     color: '#AAAAAA',
     fontSize: 14,
   },
-  registerLink: {
+  backToLoginLink: {
     color: '#FF8C00',
     textDecorationLine: 'underline',
     fontWeight: '500',

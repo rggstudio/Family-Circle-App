@@ -11,10 +11,21 @@ import {
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
-  ScrollView
+  ScrollView,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { signUp } from '../firebase/auth';
+import { 
+  getEmailError, 
+  getPasswordError, 
+  getNameError, 
+  getFamilyCircleNameError, 
+  getInviteCodeError 
+} from '../utils/validation';
 
 export default function SignUp() {
   const router = useRouter();
@@ -23,16 +34,137 @@ export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Form validation errors
+  const [firstNameError, setFirstNameError] = useState<string | null>(null);
+  const [lastNameError, setLastNameError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [familyCircleNameError, setFamilyCircleNameError] = useState<string | null>(null);
+  const [inviteCodeError, setInviteCodeError] = useState<string | null>(null);
+  
+  // Family Circle options
+  const [circleOption, setCircleOption] = useState<'create' | 'join' | null>(null);
+  const [familyCircleName, setFamilyCircleName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   
   const handleClose = () => {
     router.back();
   };
   
-  const handleSignUp = () => {
-    // Handle sign up logic here
-    console.log('Sign up with:', { firstName, lastName, email, password });
-    // For now, just go back to welcome screen
-    router.back();
+  const pickImage = async () => {
+    try {
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library to upload a profile picture.');
+        return;
+      }
+      
+      setIsUploading(true);
+      
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to select image. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+  const validateForm = (): boolean => {
+    // Reset all errors
+    setFirstNameError(null);
+    setLastNameError(null);
+    setEmailError(null);
+    setPasswordError(null);
+    setFamilyCircleNameError(null);
+    setInviteCodeError(null);
+    
+    // Validate fields
+    const firstNameErr = getNameError(firstName, 'First name');
+    const lastNameErr = getNameError(lastName, 'Last name');
+    const emailErr = getEmailError(email);
+    const passwordErr = getPasswordError(password);
+    
+    // Set errors if any
+    if (firstNameErr) setFirstNameError(firstNameErr);
+    if (lastNameErr) setLastNameError(lastNameErr);
+    if (emailErr) setEmailError(emailErr);
+    if (passwordErr) setPasswordError(passwordErr);
+    
+    // Validate Family Circle fields based on selected option
+    if (circleOption === 'create') {
+      const fcNameErr = getFamilyCircleNameError(familyCircleName);
+      if (fcNameErr) setFamilyCircleNameError(fcNameErr);
+      if (fcNameErr) return false;
+    } else if (circleOption === 'join') {
+      const inviteErr = getInviteCodeError(inviteCode);
+      if (inviteErr) setInviteCodeError(inviteErr);
+      if (inviteErr) return false;
+    } else {
+      // No circle option selected
+      Alert.alert('Selection Required', 'Please select to either create or join a Family Circle');
+      return false;
+    }
+    
+    // Return true if no errors
+    return !firstNameErr && !lastNameErr && !emailErr && !passwordErr;
+  };
+  
+  const handleSignUp = async () => {
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      await signUp(
+        email,
+        password,
+        firstName,
+        lastName,
+        profileImage,
+        circleOption,
+        familyCircleName,
+        inviteCode
+      );
+      
+      Alert.alert(
+        'Account Created',
+        'Your account has been successfully created!',
+        [{ text: 'OK', onPress: () => router.replace('/home') }]
+      );
+    } catch (error: any) {
+      // Handle specific Firebase errors
+      if (error.code === 'auth/email-already-in-use') {
+        setEmailError('This email is already in use');
+      } else if (error.code === 'auth/invalid-email') {
+        setEmailError('Invalid email address');
+      } else if (error.code === 'auth/weak-password') {
+        setPasswordError('Password is too weak');
+      } else {
+        // Generic error
+        Alert.alert('Sign Up Failed', error.message || 'An error occurred during sign up');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const navigateToLogin = () => {
@@ -67,56 +199,106 @@ export default function SignUp() {
               </Text>
             </View>
             
+            {/* Profile Image Selector */}
+            <View style={styles.profileImageContainer}>
+              <TouchableOpacity 
+                style={styles.profileImageWrapper} 
+                onPress={pickImage}
+                activeOpacity={0.8}
+              >
+                {profileImage ? (
+                  <Image 
+                    source={{ uri: profileImage }} 
+                    style={styles.profileImage} 
+                  />
+                ) : (
+                  <View style={styles.profileImagePlaceholder}>
+                    <Ionicons name="person" size={56} color="#444444" />
+                  </View>
+                )}
+                {isUploading ? (
+                  <View style={styles.uploadingOverlay}>
+                    <ActivityIndicator size="large" color="#FF8C00" />
+                  </View>
+                ) : (
+                  <View style={styles.addPhotoButton}>
+                    <Ionicons name="camera" size={20} color="#FFFFFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.addPhotoText}>Add Profile Photo</Text>
+            </View>
+            
             {/* Form */}
             <View style={styles.form}>
               <View style={styles.inputContainer}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, firstNameError && styles.inputError]}
                   placeholder="First Name"
                   placeholderTextColor="#777777"
                   value={firstName}
-                  onChangeText={setFirstName}
+                  onChangeText={text => {
+                    setFirstName(text);
+                    setFirstNameError(null);
+                  }}
                   autoCapitalize="words"
+                  editable={!isSubmitting}
                 />
+                {firstNameError && <Text style={styles.errorText}>{firstNameError}</Text>}
               </View>
               
               <View style={styles.inputContainer}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, lastNameError && styles.inputError]}
                   placeholder="Last Name"
                   placeholderTextColor="#777777"
                   value={lastName}
-                  onChangeText={setLastName}
+                  onChangeText={text => {
+                    setLastName(text);
+                    setLastNameError(null);
+                  }}
                   autoCapitalize="words"
+                  editable={!isSubmitting}
                 />
+                {lastNameError && <Text style={styles.errorText}>{lastNameError}</Text>}
               </View>
               
               <View style={styles.inputContainer}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, emailError && styles.inputError]}
                   placeholder="Email"
                   placeholderTextColor="#777777"
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={text => {
+                    setEmail(text);
+                    setEmailError(null);
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  editable={!isSubmitting}
                 />
+                {emailError && <Text style={styles.errorText}>{emailError}</Text>}
               </View>
               
               <View style={styles.inputContainer}>
-                <View style={styles.passwordContainer}>
+                <View style={[styles.passwordContainer, passwordError && styles.inputError]}>
                   <TextInput
                     style={styles.passwordInput}
                     placeholder="Create a password"
                     placeholderTextColor="#777777"
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={text => {
+                      setPassword(text);
+                      setPasswordError(null);
+                    }}
                     secureTextEntry={!passwordVisible}
                     autoCapitalize="none"
+                    editable={!isSubmitting}
                   />
                   <TouchableOpacity 
                     onPress={() => setPasswordVisible(!passwordVisible)}
                     style={styles.eyeButton}
+                    disabled={isSubmitting}
                   >
                     <Ionicons 
                       name={passwordVisible ? "eye-off" : "eye"} 
@@ -125,14 +307,114 @@ export default function SignUp() {
                     />
                   </TouchableOpacity>
                 </View>
+                {passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+              </View>
+              
+              {/* Family Circle Options */}
+              <View style={styles.familyCircleSection}>
+                <Text style={styles.sectionTitle}>Family Circle</Text>
+                
+                <View style={styles.optionsContainer}>
+                  <TouchableOpacity 
+                    style={[
+                      styles.optionButton, 
+                      circleOption === 'create' && styles.optionButtonSelected
+                    ]}
+                    onPress={() => {
+                      setCircleOption('create');
+                      setFamilyCircleNameError(null);
+                    }}
+                    activeOpacity={0.8}
+                    disabled={isSubmitting}
+                  >
+                    <Text style={[
+                      styles.optionText,
+                      circleOption === 'create' && styles.optionTextSelected
+                    ]}>Create Family Circle</Text>
+                    <Text style={[
+                      styles.optionDescription,
+                      circleOption === 'create' && styles.optionDescriptionSelected
+                    ]}>Start a new circle as admin</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[
+                      styles.optionButton, 
+                      circleOption === 'join' && styles.optionButtonSelected
+                    ]}
+                    onPress={() => {
+                      setCircleOption('join');
+                      setInviteCodeError(null);
+                    }}
+                    activeOpacity={0.8}
+                    disabled={isSubmitting}
+                  >
+                    <Text style={[
+                      styles.optionText,
+                      circleOption === 'join' && styles.optionTextSelected
+                    ]}>Join Family Circle</Text>
+                    <Text style={[
+                      styles.optionDescription,
+                      circleOption === 'join' && styles.optionDescriptionSelected
+                    ]}>Enter an invite code to join</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                {circleOption === 'create' && (
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={[styles.input, familyCircleNameError && styles.inputError]}
+                      placeholder="Family Circle Name (Ex: Smith Family)"
+                      placeholderTextColor="#777777"
+                      value={familyCircleName}
+                      onChangeText={text => {
+                        setFamilyCircleName(text);
+                        setFamilyCircleNameError(null);
+                      }}
+                      autoCapitalize="words"
+                      editable={!isSubmitting}
+                    />
+                    {familyCircleNameError && <Text style={styles.errorText}>{familyCircleNameError}</Text>}
+                  </View>
+                )}
+                
+                {circleOption === 'join' && (
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={[styles.input, inviteCodeError && styles.inputError]}
+                      placeholder="Invite Code"
+                      placeholderTextColor="#777777"
+                      value={inviteCode}
+                      onChangeText={text => {
+                        setInviteCode(text);
+                        setInviteCodeError(null);
+                      }}
+                      autoCapitalize="characters"
+                      editable={!isSubmitting}
+                    />
+                    {inviteCodeError && <Text style={styles.errorText}>{inviteCodeError}</Text>}
+                  </View>
+                )}
               </View>
               
               <TouchableOpacity 
-                style={styles.signUpButton}
+                style={[
+                  styles.signUpButton,
+                  (isSubmitting || !firstName || !lastName || !email || !password || !circleOption || 
+                   (circleOption === 'create' && !familyCircleName) || 
+                   (circleOption === 'join' && !inviteCode)) && styles.signUpButtonDisabled
+                ]}
                 onPress={handleSignUp}
                 activeOpacity={0.8}
+                disabled={isSubmitting || !firstName || !lastName || !email || !password || !circleOption || 
+                  (circleOption === 'create' && !familyCircleName) || 
+                  (circleOption === 'join' && !inviteCode)}
               >
-                <Text style={styles.signUpButtonText}>SIGN UP</Text>
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.signUpButtonText}>SIGN UP</Text>
+                )}
               </TouchableOpacity>
               
               <View style={styles.termsContainer}>
@@ -184,7 +466,7 @@ const styles = StyleSheet.create({
   header: {
     marginTop: Platform.OS === 'ios' ? 60 : 50,
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
   },
   title: {
     fontSize: 28,
@@ -228,12 +510,61 @@ const styles = StyleSheet.create({
   eyeButton: {
     paddingHorizontal: 15,
   },
+  familyCircleSection: {
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  optionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  optionButton: {
+    flex: 1,
+    backgroundColor: '#222222',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginHorizontal: 5,
+    paddingVertical: 16,
+  },
+  optionButtonSelected: {
+    backgroundColor: '#FF8C00',
+  },
+  optionText: {
+    fontSize: 14,
+    color: '#AAAAAA',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  optionTextSelected: {
+    color: '#FFFFFF',
+  },
+  optionDescription: {
+    fontSize: 12,
+    color: '#777777',
+    textAlign: 'center',
+  },
+  optionDescriptionSelected: {
+    color: '#FFFFFF',
+    opacity: 0.8,
+  },
   signUpButton: {
     backgroundColor: '#FF8C00',
     borderRadius: 25,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 10,
+  },
+  signUpButtonDisabled: {
+    backgroundColor: '#7d4400',
+    opacity: 0.7,
   },
   signUpButtonText: {
     color: '#FFFFFF',
@@ -267,5 +598,74 @@ const styles = StyleSheet.create({
     color: '#FF8C00',
     textDecorationLine: 'underline',
     fontWeight: '500',
+  },
+  profileImageContainer: {
+    alignItems: 'center',
+    marginBottom: 25,
+  },
+  profileImageWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    position: 'relative',
+  },
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: '#FF8C00',
+  },
+  profileImagePlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#222222',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#333333',
+    borderStyle: 'dashed',
+  },
+  addPhotoButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#FF8C00',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#000000',
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addPhotoText: {
+    color: '#DDDDDD',
+    fontSize: 14,
+  },
+  inputError: {
+    borderColor: '#FF3B30',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 12,
+    marginTop: 5,
+    marginLeft: 5,
   },
 }); 
