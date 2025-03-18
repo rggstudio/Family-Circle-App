@@ -13,7 +13,9 @@ import {
   Keyboard,
   ScrollView,
   ActivityIndicator,
-  Alert
+  Alert,
+  Modal,
+  Button
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +28,145 @@ import {
   getFamilyCircleNameError, 
   getInviteCodeError 
 } from '../utils/validation';
+
+interface SideMenuItems {
+  profile: {
+    photo: string;
+    name: string;
+  };
+  settings: {
+    account: boolean;
+    familyCircle: boolean; // Only visible to admin
+    notifications: boolean;
+  };
+  features: {
+    lists: boolean; // V2 feature
+    support: boolean;
+  };
+  appInfo: {
+    version: string;
+    logout: () => void;
+  };
+}
+
+interface UserProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  birthday: Date;
+  email: string;
+  profilePhoto: string;
+  // Other basic profile fields
+}
+
+interface FamilyMemberRelationship {
+  memberId: string;
+  isChild: boolean;
+  parentIds: string[];  // Can have multiple parents
+  relationshipType: 'parent' | 'child' | 'adult';
+}
+
+interface FamilyCircleSettings {
+  circleId: string;
+  circleName: string;
+  adminId: string;
+  relationships: FamilyMemberRelationship[];
+}
+
+interface FamilyMemberManagement {
+  member: {
+    id: string;
+    name: string;
+    birthday: Date;
+  };
+  settings: {
+    isChild: boolean;
+    parents: {
+      id: string;
+      name: string;
+    }[];
+  };
+}
+
+interface BottomTabNavigator {
+  Home: undefined;
+  Calendar: undefined;
+  Chat: undefined;
+  CreatePost: undefined;
+}
+
+interface PostForm {
+  title: string;
+  content: string;
+  image?: string;
+  isPinned?: boolean; // Only visible to admin
+}
+
+interface CreatePostScreenProps {
+  isAdmin: boolean;
+  onSubmit: (post: PostForm) => Promise<void>;
+  onPreview: (post: PostForm) => void;
+}
+
+interface PreviewModalProps {
+  post: PostForm;
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+interface PostNotification {
+  type: 'new_post';
+  postId: string;
+  authorId: string;
+  authorName: string;
+  title: string;
+  timestamp: Date;
+}
+
+function PreviewModal({ post, visible, onClose, onConfirm }: PreviewModalProps) {
+  return (
+    <Modal visible={visible} animationType="slide">
+      <View style={styles.previewContainer}>
+        <Text style={styles.previewTitle}>Preview Post</Text>
+        
+        <PostCard
+          title={post.title}
+          content={post.content}
+          image={post.image}
+          isPinned={post.isPinned}
+          preview
+        />
+
+        <View style={styles.actionButtons}>
+          <Button title="Edit" onPress={onClose} />
+          <Button title="Confirm & Post" onPress={onConfirm} />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+async function sendPostNotification(post: PostForm, familyCircleId: string) {
+  // Get all family members except the author
+  const familyMembers = await getFamilyMembers(familyCircleId);
+  
+  // Create notification for each member
+  const notifications = familyMembers.map(member => ({
+    userId: member.id,
+    notification: {
+      type: 'new_post',
+      postId: post.id,
+      authorId: post.authorId,
+      authorName: post.authorName,
+      title: post.title,
+      timestamp: new Date()
+    }
+  }));
+
+  // Send push notifications
+  await Promise.all(notifications.map(sendPushNotification));
+}
 
 export default function SignUp() {
   const router = useRouter();
@@ -667,5 +808,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 5,
     marginLeft: 5,
+  },
+  previewContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    padding: 20,
+  },
+  previewTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 20,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
   },
 }); 

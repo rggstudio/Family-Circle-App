@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { AuthProvider } from "../context/AuthContext";
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Colors from '../constants/Colors';
 
 export default function Layout() {
   useEffect(() => {
@@ -17,15 +18,15 @@ export default function Layout() {
         <Stack 
           screenOptions={{
             headerStyle: {
-              backgroundColor: 'black', 
+              backgroundColor: Colors.BLACK, 
             },
-            headerTintColor: 'white',
+            headerTintColor: Colors.WHITE,
             headerBackTitle: 'Back',
             headerTitleStyle: {
-              color: 'white',
+              color: Colors.WHITE,
             },
             headerShadowVisible: false,
-            contentStyle: { backgroundColor: "#000000" },
+            contentStyle: { backgroundColor: Colors.BLACK },
           }}
         >
           <Stack.Screen 
@@ -53,6 +54,62 @@ export default function Layout() {
             options={{
               headerShown: false,
             }}
+          />
+          <Stack.Screen 
+            name="menu" 
+            options={{ 
+              presentation: 'modal',
+              title: 'Menu'
+            }} 
+          />
+          <Stack.Screen 
+            name="notifications" 
+            options={{ 
+              title: 'Notifications'
+            }} 
+          />
+          <Stack.Screen 
+            name="calendar" 
+            options={{ 
+              title: 'Calendar'
+            }} 
+          />
+          <Stack.Screen 
+            name="chat" 
+            options={{ 
+              title: 'Family Chat'
+            }} 
+          />
+          <Stack.Screen 
+            name="create-post" 
+            options={{ 
+              presentation: 'modal',
+              title: 'Create Post'
+            }} 
+          />
+          <Stack.Screen 
+            name="profile/[id]" 
+            options={{ 
+              title: 'Profile'
+            }} 
+          />
+          <Stack.Screen 
+            name="tasks" 
+            options={{ 
+              title: 'All Tasks'
+            }} 
+          />
+          <Stack.Screen 
+            name="events" 
+            options={{ 
+              title: 'Calendar'
+            }} 
+          />
+          <Stack.Screen 
+            name="post-details" 
+            options={{ 
+              title: 'Post'
+            }} 
           />
           {/* Auth test page disabled
           <Stack.Screen 
