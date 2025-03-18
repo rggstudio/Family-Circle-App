@@ -28,6 +28,7 @@ import {
   getFamilyCircleNameError, 
   getInviteCodeError 
 } from '../utils/validation';
+import Colors from '../constants/Colors';
 
 interface SideMenuItems {
   profile: {
@@ -147,22 +148,95 @@ function PreviewModal({ post, visible, onClose, onConfirm }: PreviewModalProps) 
   );
 }
 
+function PostCard({ title, content, image, isPinned, preview }: { 
+  title: string; 
+  content: string; 
+  image?: string; 
+  isPinned?: boolean;
+  preview?: boolean;
+}) {
+  return (
+    <View style={{ 
+      backgroundColor: '#1E2132', 
+      borderRadius: 12, 
+      padding: 16, 
+      marginBottom: 15 
+    }}>
+      <Text style={{ 
+        color: Colors.ORANGE, 
+        fontSize: 18, 
+        fontWeight: 'bold', 
+        marginBottom: 8 
+      }}>{title}</Text>
+      <Text style={{ color: '#FFFFFF', marginBottom: 10 }}>{content}</Text>
+      {image && (
+        <Image 
+          source={{ uri: image }} 
+          style={{ width: '100%', height: 200, borderRadius: 8 }}
+          resizeMode="cover"
+        />
+      )}
+      {isPinned && (
+        <View style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          marginTop: 10 
+        }}>
+          <Ionicons name="pin" size={16} color="#FF8C00" />
+          <Text style={{ color: '#FF8C00', marginLeft: 5, fontSize: 12 }}>Pinned</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 async function sendPostNotification(post: PostForm, familyCircleId: string) {
+  // This would be replaced with your actual implementation
+  console.log('Sending notification for post', post.title, 'to circle', familyCircleId);
+  
+  // Mock implementation for type checking
+  interface FamilyMember {
+    id: string;
+    name: string;
+  }
+  
+  // Mock function to get family members
+  const getFamilyMembers = async (circleId: string): Promise<FamilyMember[]> => {
+    // This would fetch from Firebase in a real implementation
+    return [{ id: '1', name: 'Test User' }];
+  };
+  
   // Get all family members except the author
   const familyMembers = await getFamilyMembers(familyCircleId);
   
   // Create notification for each member
-  const notifications = familyMembers.map(member => ({
+  type Notification = {
+    userId: string;
+    notification: {
+      type: string;
+      postId?: string;
+      authorId?: string;
+      authorName?: string;
+      title: string;
+      timestamp: Date;
+    }
+  };
+  
+  const notifications: Notification[] = familyMembers.map((member: FamilyMember) => ({
     userId: member.id,
     notification: {
       type: 'new_post',
-      postId: post.id,
-      authorId: post.authorId,
-      authorName: post.authorName,
+      // These fields would come from the actual post data in a real implementation
       title: post.title,
       timestamp: new Date()
     }
   }));
+  
+  // Mock function to send push notification
+  const sendPushNotification = async (notification: Notification): Promise<void> => {
+    console.log('Sending push notification to', notification.userId);
+    // Implementation would go here
+  };
 
   // Send push notifications
   await Promise.all(notifications.map(sendPushNotification));
@@ -275,13 +349,16 @@ export default function SignUp() {
     setIsSubmitting(true);
     
     try {
+      // Convert null to undefined for circleOption
+      const circleOptionToSend = circleOption === null ? undefined : circleOption;
+      
       await signUp(
         email,
         password,
         firstName,
         lastName,
         profileImage,
-        circleOption || undefined,
+        circleOptionToSend,
         familyCircleName,
         inviteCode
       );
